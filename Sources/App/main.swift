@@ -45,12 +45,6 @@ drop.get("friends") { req in
 }
 
 drop.group("users") { users in
-    users.get("list") { req in
-        let users = try User.all().makeNode()
-        let usersDictionary = ["users": users]
-        return try JSON(node: usersDictionary)
-    }
-    
     users.post { req in
         guard let name = req.data["name"]?.string else {
             throw Abort.badRequest
@@ -84,6 +78,11 @@ drop.group("users") { users in
     users.group(protect) { secure in
         secure.get("secure") { req in
             return try req.user()
+        }
+        secure.get("list") { req in
+            let users = try User.all().makeNode()
+            let usersDictionary = ["users": users]
+            return try JSON(node: usersDictionary)
         }
     }
 }
