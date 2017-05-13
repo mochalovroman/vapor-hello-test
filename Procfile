@@ -1,1 +1,1 @@
-web: Hello --env=production --workdir=./ --config:servers.default.port=$PORT
+web: Hello --config:servers.default.port=$PORT
