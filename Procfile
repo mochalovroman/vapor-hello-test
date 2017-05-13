@@ -1,1 +1,1 @@
-web: test-hello-rmochalov --env=production --workdir=./ --config:servers.default.port=$PORT
+web: Hello --env=production --workdir=./ --config:servers.default.port=$PORT
