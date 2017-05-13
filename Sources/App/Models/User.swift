@@ -1,37 +1,37 @@
 import Foundation
 import Vapor
+import TurnstileCrypto
 
 struct User: Model {
     var id: Node?
     let name: String
     let email: String
+    let password: String
     var exists: Bool = false
-
-    init(name: String, email: String) {
-        self.name = name
-        self.email = email
-    }
     
     // NodeInitializable
     init(node: Node, in context: Context) throws {
         id = try node.extract("id")
         name = try node.extract("name")
         email = try node.extract("email")
+        password = try node.extract("password")
     }
     
     // NodeRepresentable
     func makeNode(context: Context) throws -> Node {
         return try Node(node: ["id": id,
                                "name": name,
-                               "email": email])
+                               "email": email,
+                               "password": password])
     }
     
     // Preparation
     static func prepare(_ database: Database) throws {
-        try database.create("users") { friends in
-            friends.id()
-            friends.string("name")
-            friends.string("email")
+        try database.create("users") { users in
+            users.id()
+            users.string("name")
+            users.string("email")
+            users.string("password")
         }
     }
     

@@ -1,5 +1,6 @@
 import Vapor
 import Auth
+import Cookies
 import VaporPostgreSQL
 
 let drop = Droplet()
@@ -10,7 +11,13 @@ do {
     assertionFailure("Error adding provider: \(error)")
 }
 
-let auth = AuthMiddleware(user: User.self)
+let auth = AuthMiddleware(user: User.self) { value in
+    return Cookie(
+        name: "vapor-auth",
+        value: value,
+        secure: true
+    )
+}
 drop.middleware.append(auth)
 drop.preparations.append(User.self)
 
@@ -45,7 +52,7 @@ drop.get("friends") { req in
 }
 
 drop.group("users") { users in
-    users.post { req in
+    users.post("register") { req in
         guard let name = req.data["name"]?.string else {
             throw Abort.badRequest
         }
@@ -54,20 +61,22 @@ drop.group("users") { users in
             throw Abort.badRequest
         }
         
-        var user = User(name: name, email: email)
+        guard let password = req.data["password"]?.string else {
+            throw Abort.badRequest
+        }
+        
+        var user = try User(node: req.json)
         try user.save()
         return user
-//        var friend = try User(node: req.json)
 //        return try friend.makeJSON()
     }
     
     users.post("login") { req in
-        guard let id = req.data["id"]?.string else {
+        guard let credentials = req.auth.header?.basic else {
             throw Abort.badRequest
         }
         
-        let creds = try Identifier(id: id)
-        try req.auth.login(creds)
+        try req.auth.login(credentials)
         
         return try JSON(node: ["message": "Logged in via default, check vapor-auth cookie."])
     }
@@ -75,11 +84,18 @@ drop.group("users") { users in
     let protect = ProtectMiddleware(error:
         Abort.custom(status: .forbidden, message: "Not authorized.")
     )
+    
     users.group(protect) { secure in
         secure.get("secure") { req in
+            guard let authHeader = req.auth.header?.header else {
+                throw Abort.badRequest
+            }
             return try req.user()
         }
         secure.get("list") { req in
+            guard let authHeader = req.auth.header?.header else {
+                throw Abort.badRequest
+            }
             let users = try User.all().makeNode()
             let usersDictionary = ["users": users]
             return try JSON(node: usersDictionary)
