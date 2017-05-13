@@ -3,7 +3,7 @@
     "scripts": {},
     "env": {},
     "formation": {},
-    "addons": [],
+    "addons": ["heroku-postgresql:hobby-dev"],
     "buildpacks": [
         {
             "url": "https://github.com/vapor/heroku-buildpack"
