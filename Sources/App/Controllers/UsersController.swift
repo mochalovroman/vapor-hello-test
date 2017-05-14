@@ -18,9 +18,9 @@ final class UsersController {
         }
         do {
             try request.auth.login(credentials, persist: true)
-            return try JSON(node: ["message": "welcome!"])
+            return try JSON(node: ["message": "You logged succesfully"])
         } catch {
-            return try JSON(node: ["message": "error login"])
+            return try JSON(node: ["message": "Unkwown login error"])
         }
     }
     
@@ -34,9 +34,9 @@ final class UsersController {
         var user = try User.register(credentials: creds) as? User
         if user != nil {
             try user!.save()
-            return try JSON(node: ["message": "welcome - \(user!.email)"])
+            return try JSON(node: ["message": "You successfully registered - \(user!.email)"])
         } else {
-            return try JSON(node: ["message": "error registration"])
+            return try JSON(node: ["message": "Unkwown registration error"])
         }
     }
     
@@ -45,12 +45,11 @@ final class UsersController {
             throw Abort.badRequest
         }
         if authHeader != "appsconf" {
-            throw Abort.custom(status: .badRequest, message: "You use bad Authorization header")
+            throw Abort.custom(status: .badRequest, message: "You use strange Authorization header")
         }
         
         let users = try User.all().makeNode()
         let usersDictionary = ["users": users]
         return try JSON(node: usersDictionary)
-
     }
 }
