@@ -1,37 +1,42 @@
 import Foundation
 import Vapor
+import Fluent
+import Turnstile
 import TurnstileCrypto
 
-struct User: Model {
+final class User {
     var id: Node?
-    let name: String
     let email: String
     let password: String
     var exists: Bool = false
     
-    // NodeInitializable
+    init(email: String, password: String) {
+        self.id = nil
+        self.email = email
+        self.password = password
+    }
+    
     init(node: Node, in context: Context) throws {
         id = try node.extract("id")
-        name = try node.extract("name")
         email = try node.extract("email")
         password = try node.extract("password")
     }
-    
-    // NodeRepresentable
+}
+
+extension User: Model {
     func makeNode(context: Context) throws -> Node {
         return try Node(node: ["id": id,
-                               "name": name,
                                "email": email,
                                "password": password])
     }
-    
-    // Preparation
+}
+
+extension User: Preparation {
     static func prepare(_ database: Database) throws {
-        try database.create("users") { users in
-            users.id()
-            users.string("name")
-            users.string("email")
-            users.string("password")
+        try database.create("users") { user in
+            user.id()
+            user.string("email")
+            user.string("password")
         }
     }
     
@@ -44,29 +49,35 @@ import Auth
 
 extension User: Auth.User {
     static func authenticate(credentials: Credentials) throws -> Auth.User {
-        let user: User?
-        
         switch credentials {
-        case let id as Identifier:
-            user = try User.find(id.id)
-        case let accessToken as AccessToken:
-            user = try User.query().filter("access_token", accessToken.string).first()
         case let apiKey as APIKey:
-            user = try User.query().filter("email", apiKey.id).filter("password", apiKey.secret).first()
+            let fetchedUser = try User.query().filter("email", apiKey.id).first()
+            guard let user = fetchedUser else {
+                throw Abort.custom(status: .networkAuthenticationRequired, message: "User does not exist")
+            }
+            if try BCrypt.verify(password: apiKey.secret, matchesHash: fetchedUser!.password) {
+                return user
+            } else {
+                throw Abort.custom(status: .networkAuthenticationRequired, message: "Invalid user name or password.")
+            }
+            
         default:
-            throw Abort.custom(status: .badRequest, message: "Invalid credentials.")
+            let type = type(of: credentials)
+            throw Abort.custom(status: .forbidden, message: "Unsupported credential type: \(type).")
         }
-        
-        guard let u = user else {
-            throw Abort.custom(status: .badRequest, message: "User not found")
-        }
-        
-        return u
     }
     
     
     static func register(credentials: Credentials) throws -> Auth.User {
-        throw Abort.custom(status: .badRequest, message: "Register not supported.")
+        let usernamePassword = credentials as? UsernamePassword
+        
+        guard let creds = usernamePassword else {
+            let type = type(of: credentials)
+            throw Abort.custom(status: .forbidden, message: "Unsupported credential type: \(type).")
+        }
+        
+        let user = User(email: creds.username, password: BCrypt.hash(password: creds.password))
+        return user
     }
 }
 
