@@ -5,9 +5,10 @@ import Turnstile
 
 final class UsersController {
     func addRoutes(to drop: Droplet) {
+        drop.post("register", handler: registerHandler)
+        
         drop.group("users") { users in
             users.post("login", handler: loginHandler)
-            users.post("register", handler: registerHandler)
             users.get("list", handler: listHandler)
         }
     }
